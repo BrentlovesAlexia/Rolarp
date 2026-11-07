@@ -1,374 +1,143 @@
-import React, { useState } from 'react';
-import { UserProfile, WearingItem, Transaction } from './types';
-import { Avatar3DView } from './components/Avatar3DView';
-import { EditProfileModal } from './components/EditProfileModal';
-import { User, ShoppingBag, CreditCard, Box, Check, Search } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  User, Home, Shirt, ShoppingBag, CreditCard, Search, Settings, Bell,
+  Menu, X, Check, ExternalLink, RefreshCw, Image, Plus, Trash2, Save,
+  UserRound, BadgeCheck, Sparkles, History, Wallet, Globe, Pencil
+} from 'lucide-react';
 
-export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'avatar' | 'inventory' | 'trade' | 'robux'>('profile');
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [purchaseSuccessMsg, setPurchaseSuccessMsg] = useState<string | null>(null);
+type Tab = 'profile'|'avatar'|'inventory'|'marketplace'|'transactions'|'settings';
+type Item = { id:string; name:string; image:string; category:string; source:'demo'|'roblox'; price?:string };
+type Profile = { username:string; displayName:string; bio:string; robux:number; friends:string; followers:string; following:string; badge:'none'|'plus'|'pro'; userId?:number; avatarUrl?:string; headshotUrl?:string; bannerUrl?:string };
+const STORAGE='rolarp-v2';
+const thumb=(id:string)=>`https://thumbnails.roblox.com/v1/assets?assetIds=${encodeURIComponent(id)}&size=420x420&format=Png`;
+const assetThumb=(id:string)=>`https://www.roblox.com/asset-thumbnail/image?assetId=${encodeURIComponent(id)}&width=420&height=420&format=png`;
+const starter:Profile={username:'matelarps',displayName:'matelarps',bio:'yoo zlarp',robux:55488,friends:'1',followers:'5.6M',following:'0',badge:'pro'};
+const starterItems:Item[]=[
+ {id:'1285307',name:'Sparkle Time Fedora',image:assetThumb('1285307'),category:'Head',source:'demo',price:'Demo item'},
+ {id:'215718515',name:'Fiery Horns of the Nether',image:assetThumb('215718515'),category:'Accessory',source:'demo',price:'Demo item'},
+ {id:'398633812',name:'Checkered Shirt',image:assetThumb('398633812'),category:'Clothing',source:'demo',price:'Free'}
+];
+const safeLoad=()=>{try{return JSON.parse(localStorage.getItem(STORAGE)||'{}')}catch{return {}}};
 
-  const [profile, setProfile] = useState<UserProfile>({
-    username: 'matelarps',
-    displayName: 'matelarps',
-    robux: 55488,
-    friends: '1',
-    followers: '5.6M',
-    following: '0',
-    bio: 'yoo zlarp',
-    badge: 'pro'
-  });
+export function App(){
+ const saved=safeLoad();
+ const [tab,setTab]=useState<Tab>('profile');
+ const [profile,setProfile]=useState<Profile>(saved.profile||starter);
+ const [items,setItems]=useState<Item[]>(saved.items||starterItems);
+ const [transactions,setTransactions]=useState<any[]>(saved.transactions||[
+  {id:'a',type:'Incoming Robux',details:'Demo stipend',amount:2222,date:new Date().toLocaleDateString()}
+ ]);
+ const [mode,setMode]=useState<'simulator'|'roblox'>('simulator');
+ const [username,setUsername]=useState('');
+ const [lookupBusy,setLookupBusy]=useState(false);
+ const [notice,setNotice]=useState('');
+ const [edit,setEdit]=useState(false);
+ const [assetId,setAssetId]=useState('');
+ const [assetName,setAssetName]=useState('');
+ const [search,setSearch]=useState('');
+ const [catalog,setCatalog]=useState<any[]>([]);
+ const [catalogBusy,setCatalogBusy]=useState(false);
+ const [mobileMenu,setMobileMenu]=useState(false);
+ const [robuxInput,setRobuxInput]=useState('1000');
 
-  const [wearingItems, setWearingItems] = useState<WearingItem[]>([
-    { id: '1285307', name: 'Sparkle Time Fedora', price: '3,496,767', imgUrl: 'https://www.roblox.com/asset-thumbnail/image?assetId=1285307&width=420&height=420&format=png' },
-    { id: '215718515', name: 'Fiery Horns of the Net...', price: '2,119,998', imgUrl: 'https://www.roblox.com/asset-thumbnail/image?assetId=215718515&width=420&height=420&format=png' },
-    { id: '398633812', name: 'Checkered Shirt', price: 'Free', imgUrl: 'https://www.roblox.com/asset-thumbnail/image?assetId=398633812&width=420&height=420&format=png' }
-  ]);
-
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    { id: '1', type: 'Incoming Robux', details: 'Robux Stipends', amount: 222222 },
-    { id: '2', type: 'Incoming Robux', details: 'Sales of Goods', amount: 100000000 }
-  ]);
-
-  const [customAssetInput, setCustomAssetInput] = useState('');
-
-  const handleBuyRobux = (amount: number, priceStr: string) => {
-    const updatedRobux = profile.robux + amount;
-    setProfile({ ...profile, robux: updatedRobux });
-
-    const newTrans: Transaction = {
-      id: Date.now().toString(),
-      type: 'Incoming Robux',
-      details: `Purchased Package (${priceStr})`,
-      amount: amount
-    };
-    setTransactions([newTrans, ...transactions]);
-    setPurchaseSuccessMsg(`${amount.toLocaleString()} Robux successfully added into balance!`);
-  };
-
-  const handleAddCustomAsset = () => {
-    if (!customAssetInput.trim()) return;
-    const newItem: WearingItem = {
-      id: customAssetInput,
-      name: `Custom Item ${customAssetInput}`,
-      price: 'Equipped',
-      imgUrl: `https://www.roblox.com/asset-thumbnail/image?assetId=${customAssetInput}&width=420&height=420&format=png`
-    };
-    setWearingItems([...wearingItems, newItem]);
-    setCustomAssetInput('');
-  };
-
-  return (
-    <div className="w-full max-w-6xl h-screen max-h-[900px] bg-[#f2f4f5] flex flex-col overflow-hidden shadow-2xl relative my-auto">
-      
-      {/* Top Navbar */}
-      <header className="h-14 bg-white border-b border-[#d8d9dc] px-4 flex items-center justify-between z-30 shrink-0">
-        <div className="flex items-center gap-6">
-          <span className="text-2xl font-black tracking-tighter text-black cursor-pointer">ROBLOX</span>
-          <nav className="hidden md:flex gap-4 text-sm font-semibold text-gray-500">
-            <span onClick={() => setActiveTab('profile')} className="cursor-pointer hover:text-black">Charts</span>
-            <span onClick={() => setActiveTab('inventory')} className="cursor-pointer hover:text-black">Marketplace</span>
-            <span onClick={() => setActiveTab('avatar')} className="cursor-pointer hover:text-black">Create</span>
-            <span onClick={() => setActiveTab('robux')} className="cursor-pointer hover:text-black">Robux</span>
-          </nav>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 bg-[#e8eaed] rounded-lg px-3 py-1.5 w-48">
-            <Search size={14} className="text-gray-500" />
-            <input type="text" placeholder="Search" className="bg-transparent border-none outline-none text-xs w-full" />
-          </div>
-
-          <button
-            onClick={() => setActiveTab('robux')}
-            className="flex items-center gap-1.5 bg-[#f2f4f5] hover:bg-[#e4e6e8] border border-[#d8d9dc] px-3 py-1 rounded-full text-xs font-bold transition-colors"
-          >
-            <span className="w-4 h-4 border-2 border-[#191919] rounded-full text-[9px] font-black flex items-center justify-center">R</span>
-            <span>{profile.robux.toLocaleString()}</span>
-          </button>
-        </div>
-      </header>
-
-      {/* Main Container */}
-      <div className="flex flex-1 min-h-0 relative">
-        
-        {/* Left Sidebar */}
-        <aside className="w-52 bg-white border-r border-[#d8d9dc] hidden md:flex flex-col p-2 space-y-1 shrink-0">
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'profile' ? 'bg-[#e8eaed] text-black font-bold' : 'text-gray-700 hover:bg-[#f2f4f5]'}`}
-          >
-            <User size={18} />
-            <span>Profile</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('avatar')}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'avatar' ? 'bg-[#e8eaed] text-black font-bold' : 'text-gray-700 hover:bg-[#f2f4f5]'}`}
-          >
-            <Box size={18} />
-            <span>Avatar</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('inventory')}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'inventory' ? 'bg-[#e8eaed] text-black font-bold' : 'text-gray-700 hover:bg-[#f2f4f5]'}`}
-          >
-            <ShoppingBag size={18} />
-            <span>Inventory</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('trade')}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'trade' ? 'bg-[#e8eaed] text-black font-bold' : 'text-gray-700 hover:bg-[#f2f4f5]'}`}
-          >
-            <CreditCard size={18} />
-            <span>Trade</span>
-          </button>
-        </aside>
-
-        {/* Dynamic Content Views */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#f2f4f5]">
-          
-          {/* PROFILE TAB */}
-          {activeTab === 'profile' && (
-            <div className="max-w-4xl mx-auto space-y-6">
-              <div className="bg-white rounded-xl border border-[#d8d9dc] p-6 shadow-sm">
-                
-                {/* 3D Banner Stage */}
-                <div className="w-full h-64 bg-gradient-to-b from-[#e6e8eb] to-[#cbcfd4] rounded-xl overflow-hidden border border-[#d8d9dc] relative mb-6">
-                  <Avatar3DView />
-                  <span className="absolute top-3 right-3 bg-white/80 backdrop-blur-md px-3 py-1 rounded-md text-xs font-bold text-gray-700 shadow-sm">
-                    3D Interactive Orbit 🔄
-                  </span>
-                </div>
-
-                {/* Profile Header Details */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={wearingItems[0]?.imgUrl || 'https://www.roblox.com/asset-thumbnail/image?assetId=1285307&width=420&height=420&format=png'}
-                      alt="Avatar Head"
-                      className="w-16 h-16 rounded-full border-2 border-[#d8d9dc] object-contain bg-white"
-                    />
-                    <div>
-                      <h1 className="text-2xl font-black text-black flex items-center gap-1.5">
-                        {profile.displayName}
-                        {profile.badge !== 'none' && (
-                          <span className="bg-[#0066ff] text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                            {profile.badge === 'plus' ? '+' : '✓'}
-                          </span>
-                        )}
-                      </h1>
-                      <p className="text-xs text-gray-500">@{profile.username}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button onClick={() => setActiveTab('avatar')} className="bg-[#0066ff] hover:bg-[#0052cc] text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors">
-                      Edit appearance
-                    </button>
-                    <button onClick={() => setIsEditModalOpen(true)} className="bg-[#e3e4e6] hover:bg-[#d4d6d9] text-black font-bold text-xs px-4 py-2.5 rounded-lg transition-colors">
-                      Edit profile
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 mt-6">
-                  <span className="bg-[#f2f4f5] px-3.5 py-1.5 rounded-full text-xs text-gray-600">
-                    <strong className="text-black font-bold">{profile.friends}</strong> Friends
-                  </span>
-                  <span className="bg-[#f2f4f5] px-3.5 py-1.5 rounded-full text-xs text-gray-600">
-                    <strong className="text-black font-bold">{profile.followers}</strong> Followers
-                  </span>
-                  <span className="bg-[#f2f4f5] px-3.5 py-1.5 rounded-full text-xs text-gray-600">
-                    <strong className="text-black font-bold">{profile.following}</strong> Following
-                  </span>
-                </div>
-
-                <p className="mt-4 text-sm text-gray-700 bg-[#f9fafb] p-3 rounded-lg border border-gray-100">{profile.bio}</p>
-              </div>
-
-              {/* Currently Wearing Grid */}
-              <div>
-                <h2 className="text-lg font-extrabold mb-3">Currently Wearing</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {wearingItems.map((item) => (
-                    <div key={item.id} className="bg-white border border-[#d8d9dc] rounded-xl p-3 flex flex-col hover:border-gray-400 transition-all">
-                      <img src={item.imgUrl} alt={item.name} className="w-full h-28 object-contain bg-[#f9fafb] rounded-lg mb-2" />
-                      <span className="text-xs font-bold truncate">{item.name}</span>
-                      <span className="text-[11px] text-gray-500 mt-0.5">{item.price}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* AVATAR EDITOR TAB */}
-          {activeTab === 'avatar' && (
-            <div className="max-w-4xl mx-auto space-y-4">
-              <h1 className="text-xl font-extrabold">Avatar Editor</h1>
-              <div className="bg-white border border-[#d8d9dc] rounded-xl p-6 shadow-sm space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Enter Asset ID to Wear</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="e.g. 215718515"
-                      value={customAssetInput}
-                      onChange={(e) => setCustomAssetInput(e.target.value)}
-                      className="bg-[#f2f4f5] border border-[#d8d9dc] rounded-lg p-2.5 text-sm flex-1 outline-none"
-                    />
-                    <button onClick={handleAddCustomAsset} className="bg-[#0066ff] text-white font-bold text-xs px-4 rounded-lg">
-                      Add & wear
-                    </button>
-                  </div>
-                </div>
-
-                <h2 className="text-sm font-bold text-gray-700 pt-2">Equipped Outfit Items</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {wearingItems.map((item) => (
-                    <div key={item.id} className="bg-[#f9fafb] border border-[#d8d9dc] rounded-xl p-3 flex flex-col items-center text-center">
-                      <img src={item.imgUrl} alt={item.name} className="w-20 h-20 object-contain mb-2" />
-                      <span className="text-xs font-bold truncate w-full">{item.name}</span>
-                      <button
-                        onClick={() => setWearingItems(wearingItems.filter((i) => i.id !== item.id))}
-                        className="mt-2 bg-gray-200 hover:bg-gray-300 text-black text-[10px] font-bold py-1 px-3 rounded-md w-full"
-                      >
-                        Take off
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* INVENTORY TAB */}
-          {activeTab === 'inventory' && (
-            <div className="max-w-4xl mx-auto space-y-4">
-              <h1 className="text-xl font-extrabold">My Inventory</h1>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                <div className="bg-white border border-[#d8d9dc] rounded-xl p-3 relative flex flex-col">
-                  <span className="absolute top-2 left-2 bg-[#00b06f] text-white text-[8px] font-black px-1.5 py-0.5 rounded">LIMITED U</span>
-                  <img src="https://www.roblox.com/asset-thumbnail/image?assetId=138932947&width=420&height=420&format=png" className="w-full h-28 object-contain bg-[#f9fafb] rounded-lg mb-2" />
-                  <span className="text-xs font-bold truncate">Dominus Astra</span>
-                  <span className="text-[11px] font-bold text-[#00b06f] mt-1">R$ 150M+</span>
-                </div>
-                <div className="bg-white border border-[#d8d9dc] rounded-xl p-3 relative flex flex-col">
-                  <span className="absolute top-2 left-2 bg-[#00b06f] text-white text-[8px] font-black px-1.5 py-0.5 rounded">LIMITED U</span>
-                  <img src="https://www.roblox.com/asset-thumbnail/image?assetId=21070012&width=420&height=420&format=png" className="w-full h-28 object-contain bg-[#f9fafb] rounded-lg mb-2" />
-                  <span className="text-xs font-bold truncate">Dominus Empyreus</span>
-                  <span className="text-[11px] font-bold text-[#00b06f] mt-1">R$ 618M+</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TRADE / TRANSACTIONS TAB */}
-          {activeTab === 'trade' && (
-            <div className="max-w-4xl mx-auto space-y-4">
-              <h1 className="text-xl font-extrabold">My Transactions</h1>
-              <div className="bg-white border border-[#d8d9dc] rounded-xl overflow-hidden shadow-sm">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#f9fafb] border-b border-[#d8d9dc] text-gray-500 font-bold uppercase">
-                    <tr>
-                      <th className="p-3">Type</th>
-                      <th className="p-3">Details</th>
-                      <th className="p-3">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#d8d9dc]">
-                    {transactions.map((t) => (
-                      <tr key={t.id}>
-                        <td className="p-3 font-bold text-[#00b06f]">{t.type}</td>
-                        <td className="p-3 text-gray-700">{t.details}</td>
-                        <td className="p-3 font-bold text-[#00b06f]">+ {t.amount.toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* BUY ROBUX SHOP TAB */}
-          {activeTab === 'robux' && (
-            <div className="max-w-4xl mx-auto space-y-4">
-              <h1 className="text-xl font-extrabold">Buy Robux</h1>
-              <p className="text-xs text-gray-500">Select a Robux tier package to credit your simulated balance.</p>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {[
-                  { amount: 400, price: '$4.99' },
-                  { amount: 800, price: '$9.99' },
-                  { amount: 1700, price: '$19.99' },
-                  { amount: 4500, price: '$49.99' }
-                ].map((tier) => (
-                  <div key={tier.amount} className="bg-white border border-[#d8d9dc] rounded-2xl p-5 text-center flex flex-col items-center shadow-sm">
-                    <div className="text-2xl font-black flex items-center gap-1 my-2">
-                      <span className="w-5 h-5 border-2 border-black rounded-full text-[10px] font-black flex items-center justify-center">R</span>
-                      <span>{tier.amount.toLocaleString()}</span>
-                    </div>
-                    <button
-                      onClick={() => handleBuyRobux(tier.amount, tier.price)}
-                      className="w-full bg-[#0066ff] hover:bg-[#0052cc] text-white font-bold text-xs py-2.5 rounded-xl transition-colors mt-3"
-                    >
-                      {tier.price}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </main>
+ useEffect(()=>{localStorage.setItem(STORAGE,JSON.stringify({profile,items,transactions}))},[profile,items,transactions]);
+ const say=(s:string)=>{setNotice(s);window.setTimeout(()=>setNotice(''),3500)};
+ const nav:[Tab,string,any][]=[
+  ['profile','Profile',User],['avatar','Avatar',Shirt],['inventory','Inventory',ShoppingBag],
+  ['marketplace','Marketplace',Search],['transactions','Transactions',CreditCard],['settings','Settings',Settings]
+ ];
+ async function lookupUser(){
+  const name=username.trim(); if(!name)return say('Enter a Roblox username first.');
+  setLookupBusy(true);
+  try{
+   const r=await fetch('https://users.roblox.com/v1/usernames/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usernames:[name],excludeBannedUsers:false})});
+   if(!r.ok) throw new Error('Roblox username lookup is unavailable right now.');
+   const j=await r.json(); const u=j.data?.[0]; if(!u)throw new Error('No public Roblox account found with that username.');
+   const [pr,tr]=await Promise.all([
+    fetch(`https://users.roblox.com/v1/users/${u.id}`),
+    fetch(`https://thumbnails.roblox.com/v1/users/avatar?userIds=${u.id}&size=420x420&format=Png&isCircular=false`)
+   ]);
+   const p=pr.ok?await pr.json():{}; const t=tr.ok?await tr.json():{};
+   const avatar=t.data?.[0]?.imageUrl||'';
+   setProfile(old=>({...old,username:u.name,displayName:p.displayName||u.displayName||u.name,bio:p.description||'',userId:u.id,avatarUrl:avatar,headshotUrl:avatar}));
+   setMode('roblox'); setTab('profile'); say(`Loaded public profile: ${u.name}`);
+  }catch(e:any){say(e.message||'Could not load this profile.');}
+  finally{setLookupBusy(false)}
+ }
+ async function searchCatalog(){
+  if(!search.trim())return;
+  setCatalogBusy(true); setCatalog([]);
+  try{
+   const url=`https://catalog.roblox.com/v1/search/items/details?Keyword=${encodeURIComponent(search)}&Limit=20&SortType=0`;
+   const r=await fetch(url); if(!r.ok)throw new Error();
+   const j=await r.json(); setCatalog(j.data||[]);
+   if(!j.data?.length)say('No catalog results found.');
+  }catch{say('Catalog search may be blocked by browser access. Try an item ID instead.')}
+  finally{setCatalogBusy(false)}
+ }
+ function addItem(id:string,name?:string,image?:string){
+  if(!/^\d+$/.test(id))return say('Item ID must contain numbers only.');
+  const item:Item={id,name:name||`Roblox item ${id}`,image:image||assetThumb(id),category:'Accessory',source:'roblox'};
+  setItems(old=>[item,...old.filter(x=>x.id!==id)]); say(`${item.name} added to your demo outfit.`);
+ }
+ function addRobux(){
+  const n=Math.max(0,Math.floor(Number(robuxInput)||0)); if(!n)return;
+  setProfile(p=>({...p,robux:p.robux+n}));
+  setTransactions(t=>[{id:Date.now().toString(),type:'Incoming Robux',details:'Simulator balance adjustment',amount:n,date:new Date().toLocaleDateString()},...t]);
+  say(`${n.toLocaleString()} demo Robux added.`);
+ }
+ const shownItems=useMemo(()=>items.filter(x=>(x.name+' '+x.id+' '+x.category).toLowerCase().includes(search.toLowerCase())),[items,search]);
+ const avatar=profile.avatarUrl||'';
+ const TabButton=({id,label,Icon}:any)=><button className={`navitem ${tab===id?'active':''}`} onClick={()=>{setTab(id);setMobileMenu(false)}}><Icon size={18}/><span>{label}</span></button>;
+ return <div className="app-shell">
+  <header className="topbar">
+   <button className="mobile-toggle iconbtn" onClick={()=>setMobileMenu(!mobileMenu)} aria-label="Menu"><Menu/></button>
+   <button className="brand" onClick={()=>setTab('profile')}>ROLARP</button>
+   <nav className="toplinks"><button onClick={()=>setTab('profile')}>Charts</button><button onClick={()=>setTab('marketplace')}>Marketplace</button><button onClick={()=>setTab('avatar')}>Create</button></nav>
+   <div className="top-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search Rolarp"/></div>
+   <button className="balance" onClick={()=>setTab('transactions')}>◉ {profile.robux.toLocaleString()}</button>
+  </header>
+  <div className="layout">
+   <aside className={`sidebar ${mobileMenu?'open':''}`}>
+    <div className="side-user"><div className="mini-avatar">{avatar?<img src={avatar}/>:<User/>}</div><div><b>{profile.displayName}</b><small>@{profile.username}</small></div></div>
+    {nav.map(([id,label,Icon])=><TabButton key={id} id={id} label={label} Icon={Icon}/>)}
+    <div className="side-note"><Sparkles size={17}/><b>Rolarp Studio</b><p>Explore a Roblox-style interface with a real public profile lookup and a customizable demo mode.</p></div>
+   </aside>
+   <main className="content">
+    <div className="modebar"><div><span className={`dot ${mode==='roblox'?'green':''}`}></span><b>{mode==='roblox'?'Roblox public data':'Simulator mode'}</b><small>{mode==='roblox'?'Public account details where available':'Changes are saved on this device'}</small></div><div className="mode-actions"><button className={mode==='simulator'?'selected':''} onClick={()=>setMode('simulator')}>Simulator</button><button className={mode==='roblox'?'selected':''} onClick={()=>setMode('roblox')}>Roblox data</button></div></div>
+    {tab==='profile'&&<section className="page">
+     <div className="profile-hero">
+      <div className="cover"><div className="cover-label">ROLARP PROFILE</div>{avatar&&<img className="cover-avatar" src={avatar} alt="Roblox avatar"/>}</div>
+      <div className="profile-main">
+       <div className="profile-head"><div className="big-avatar">{avatar?<img src={avatar} alt="Avatar"/>:<div className="avatar-placeholder"><UserRound size={48}/></div>}</div>
+        <div className="profile-names"><h1>{profile.displayName} {profile.badge!=='none'&&<BadgeCheck className="verified" size={22}/>}</h1><p>@{profile.username}{profile.userId?` · ID ${profile.userId}`:''}</p></div>
+        <div className="profile-buttons"><button className="primary" onClick={()=>setTab('avatar')}>Edit appearance</button><button onClick={()=>setEdit(true)}>Edit profile</button></div>
+       </div>
+       <div className="stats"><span>{profile.friends} <small>Friends</small></span><span>{profile.followers} <small>Followers</small></span><span>{profile.following} <small>Following</small></span></div>
+       <p className="bio">{profile.bio||'No bio yet.'}</p>
       </div>
-
-      {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden h-14 bg-white border-t border-[#d8d9dc] flex items-center justify-around z-30 shrink-0">
-        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center text-[10px] ${activeTab === 'profile' ? 'text-[#0066ff] font-bold' : 'text-gray-500'}`}>
-          <User size={18} />
-          <span>Profile</span>
-        </button>
-        <button onClick={() => setActiveTab('avatar')} className={`flex flex-col items-center text-[10px] ${activeTab === 'avatar' ? 'text-[#0066ff] font-bold' : 'text-gray-500'}`}>
-          <Box size={18} />
-          <span>Avatar</span>
-        </button>
-        <button onClick={() => setActiveTab('inventory')} className={`flex flex-col items-center text-[10px] ${activeTab === 'inventory' ? 'text-[#0066ff] font-bold' : 'text-gray-500'}`}>
-          <ShoppingBag size={18} />
-          <span>Inventory</span>
-        </button>
-        <button onClick={() => setActiveTab('trade')} className={`flex flex-col items-center text-[10px] ${activeTab === 'trade' ? 'text-[#0066ff] font-bold' : 'text-gray-500'}`}>
-          <CreditCard size={18} />
-          <span>Trade</span>
-        </button>
-      </nav>
-
-      {/* Edit Profile Modal Component */}
-      <EditProfileModal
-        profile={profile}
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        onSave={(updated) => setProfile(updated)}
-      />
-
-      {/* Purchase Success Modal */}
-      {purchaseSuccessMsg && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6 text-center shadow-2xl animate-in zoom-in-95">
-            <div className="w-12 h-12 bg-green-100 text-[#00b06f] rounded-full flex items-center justify-center mx-auto mb-3">
-              <Check size={24} />
-            </div>
-            <h3 className="text-lg font-extrabold text-black mb-2">Purchase Complete</h3>
-            <p className="text-xs text-gray-600 mb-5">{purchaseSuccessMsg}</p>
-            <button
-              onClick={() => setPurchaseSuccessMsg(null)}
-              className="w-full bg-[#0066ff] text-white font-bold py-2.5 rounded-xl text-xs"
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+     </div>
+     <div className="section-title"><h2>Currently Wearing</h2><button className="textbtn" onClick={()=>setTab('avatar')}>Edit outfit <Pencil size={14}/></button></div>
+     <div className="item-grid">{items.slice(0,8).map(i=><ItemCard key={i.id} item={i} onRemove={()=>setItems(old=>old.filter(x=>x.id!==i.id))}/>)}</div>
+    </section>}
+    {tab==='avatar'&&<section className="page"><div className="page-heading"><div><h1>Avatar Editor</h1><p>Preview items and build a demo outfit.</p></div><span className="pill">CUSTOMIZE</span></div>
+     <div className="avatar-editor"><div className="avatar-stage">{avatar?<img src={avatar} alt="Roblox avatar preview"/>:<div className="avatar-placeholder large"><UserRound size={90}/></div>}<p>{profile.displayName}</p><small>Public avatar preview</small></div>
+      <div className="editor-tools"><h3>Add an item by catalog ID</h3><p>Paste the number from a Roblox catalog item URL. This adds it to your Rolarp demo outfit.</p><div className="input-row"><input value={assetId} onChange={e=>setAssetId(e.target.value)} placeholder="Item ID, e.g. 171650..." inputMode="numeric"/><button className="primary" onClick={()=>{addItem(assetId);setAssetId('')}}><Plus size={16}/> Add & wear</button></div>
+       <h3>Currently wearing</h3><div className="wear-list">{items.map(i=><div className="wear-row" key={i.id}><img src={i.image} onError={e=>{(e.currentTarget as HTMLImageElement).src=assetThumb(i.id)}}/><div><b>{i.name}</b><small>{i.id} · {i.source==='demo'?'Sample item':'Catalog ID'}</small></div><button className="lightbtn" onClick={()=>setItems(old=>old.filter(x=>x.id!==i.id))}>Take off</button></div>)}</div>
+      </div></div>
+    </section>}
+    {tab==='inventory'&&<section className="page"><div className="page-heading"><div><h1>My Inventory</h1><p>Items saved in this Rolarp browser profile.</p></div><span className="pill">{items.length} ITEMS</span></div><div className="filter-row"><Search size={17}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search inventory"/></div><div className="item-grid">{shownItems.map(i=><ItemCard key={i.id} item={i} onRemove={()=>setItems(old=>old.filter(x=>x.id!==i.id))}/>)}</div></section>}
+    {tab==='marketplace'&&<section className="page"><div className="page-heading"><div><h1>Marketplace</h1><p>Search public Roblox catalog listings when the Roblox API allows browser access.</p></div><Globe size={25}/></div><div className="catalog-search"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search catalog, e.g. classic shirt"/><button className="primary" onClick={searchCatalog} disabled={catalogBusy}>{catalogBusy?'Searching...':'Search'}</button></div><div className="catalog-grid">{catalog.map((c:any)=><div className="catalog-card" key={c.id}><img src={assetThumb(String(c.id))}/><b>{c.name}</b><small>Item ID: {c.id}</small><button onClick={()=>addItem(String(c.id),c.name)}>Add to outfit</button></div>)}</div><div className="api-note"><Globe size={18}/><div><b>Real Roblox data note</b><p>Catalog search and public profile lookup use Roblox public endpoints. Some requests can fail because of Roblox rate limits, privacy settings, or browser CORS rules. Rolarp never asks for your Roblox password.</p><a href="https://www.roblox.com/catalog" target="_blank" rel="noreferrer">Open official Roblox catalog <ExternalLink size={13}/></a></div></div></section>}
+    {tab==='transactions'&&<section className="page"><div className="page-heading"><div><h1>My Transactions</h1><p>Simulator-only Robux balance and activity.</p></div><Wallet size={26}/></div><div className="balance-card"><div><small>DEMO BALANCE</small><h2>◉ {profile.robux.toLocaleString()}</h2></div><div className="adjust"><input type="number" min="1" value={robuxInput} onChange={e=>setRobuxInput(e.target.value)}/><button className="primary" onClick={addRobux}>Add demo Robux</button></div></div><div className="section-title"><h2>Transaction history</h2><span className="pill">SIMULATED</span></div><div className="table-wrap"><table><thead><tr><th>Type</th><th>Details</th><th>Date</th><th>Amount</th></tr></thead><tbody>{transactions.map(t=><tr key={t.id}><td>{t.type}</td><td>{t.details}</td><td>{t.date||'—'}</td><td className="green-text">+ {Number(t.amount).toLocaleString()}</td></tr>)}</tbody></table></div><p className="muted">This is a local demo balance. It does not change your actual Roblox Robux.</p></section>}
+    {tab==='settings'&&<section className="page"><div className="page-heading"><div><h1>Settings</h1><p>Connect a public Roblox profile or reset your local demo.</p></div><Settings size={26}/></div><div className="settings-card"><h3>Load a Roblox profile</h3><p>Enter a public Roblox username. Rolarp will look up the account and its public avatar thumbnail.</p><div className="input-row"><input value={username} onChange={e=>setUsername(e.target.value)} placeholder="Roblox username"/><button className="primary" disabled={lookupBusy} onClick={lookupUser}>{lookupBusy?'Loading...':'Find profile'}</button></div><p className="muted">Only public profile information is requested. Never enter your password, cookie, or authentication token.</p></div><div className="settings-card"><h3>Profile data</h3><p>Current mode: <b>{mode==='roblox'?'Roblox public data':'Simulator'}</b></p><button className="lightbtn" onClick={()=>{setProfile(starter);setItems(starterItems);setTransactions([]);setMode('simulator');say('Demo data restored.')}}><RefreshCw size={15}/> Reset demo data</button></div><div className="settings-card"><h3>Official Roblox links</h3><a href="https://www.roblox.com/" target="_blank" rel="noreferrer">Roblox home <ExternalLink size={14}/></a><a href="https://www.roblox.com/users" target="_blank" rel="noreferrer">Roblox profiles <ExternalLink size={14}/></a><a href="https://www.roblox.com/catalog" target="_blank" rel="noreferrer">Roblox marketplace <ExternalLink size={14}/></a></div></section>}
+   </main>
+  </div>
+  <nav className="mobile-nav">{nav.slice(0,5).map(([id,label,Icon])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><Icon size={19}/><span>{label}</span></button>)}</nav>
+  {notice&&<div className="toast"><Check size={16}/>{notice}</div>}
+  {edit&&<div className="modal-backdrop" onClick={()=>setEdit(false)}><form className="modal" onClick={e=>e.stopPropagation()} onSubmit={e=>{e.preventDefault();setEdit(false);say('Profile saved on this device.')}}><div className="modal-head"><h2>Edit — Profile</h2><button type="button" className="iconbtn" onClick={()=>setEdit(false)}><X/></button></div>
+   <label>Username<input value={profile.username} onChange={e=>setProfile(p=>({...p,username:e.target.value}))}/></label><label>Display name<input value={profile.displayName} onChange={e=>setProfile(p=>({...p,displayName:e.target.value}))}/></label><label>Bio<textarea value={profile.bio} maxLength={1000} onChange={e=>setProfile(p=>({...p,bio:e.target.value}))}/></label><div className="form-grid"><label>Friends<input value={profile.friends} onChange={e=>setProfile(p=>({...p,friends:e.target.value}))}/></label><label>Followers<input value={profile.followers} onChange={e=>setProfile(p=>({...p,followers:e.target.value}))}/></label><label>Following<input value={profile.following} onChange={e=>setProfile(p=>({...p,following:e.target.value}))}/></label></div><label>Demo Robux balance<input type="number" value={profile.robux} onChange={e=>setProfile(p=>({...p,robux:Number(e.target.value)}))}/></label><label>Profile badge<select value={profile.badge} onChange={e=>setProfile(p=>({...p,badge:e.target.value as Profile['badge']}))}><option value="none">No badge</option><option value="plus">Plus</option><option value="pro">Pro</option></select></label><button className="primary full" type="submit"><Save size={16}/> Save profile</button></form></div>}
+ </div>
+}
+function ItemCard({item,onRemove}:{item:Item,onRemove:()=>void}){
+ return <article className="item-card"><div className="item-image"><img src={item.image} alt={item.name} onError={e=>{(e.currentTarget as HTMLImageElement).src=assetThumb(item.id)}}/></div><b>{item.name}</b><small>{item.price||item.category}</small><button className="remove-btn" onClick={onRemove}><Trash2 size={13}/> Remove</button></article>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                }
