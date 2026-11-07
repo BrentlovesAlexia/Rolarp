@@ -1,4 +1,4 @@
-name: Deploy Roblox Simulator to GitHub Pages
+name: Deploy Rolarp Simulator to GitHub Pages
 
 on:
   push:
