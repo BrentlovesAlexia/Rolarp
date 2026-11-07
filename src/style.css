@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --roblox-light-bg: #f2f4f5;
+  --roblox-card-bg: #ffffff;
+  --roblox-blue: #0066ff;
+  --roblox-blue-hover: #0052cc;
+  --roblox-border: #d8d9dc;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #121212;
+}
+
+/* Custom scrollbar matching Roblox mobile theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f2f4f5;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c3c7;
+  border-radius: 4px;
+}
