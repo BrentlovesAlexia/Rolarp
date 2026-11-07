@@ -140,4 +140,4 @@ export function App(){
 }
 function ItemCard({item,onRemove}:{item:Item,onRemove:()=>void}){
  return <article className="item-card"><div className="item-image"><img src={item.image} alt={item.name} onError={e=>{(e.currentTarget as HTMLImageElement).src=assetThumb(item.id)}}/></div><b>{item.name}</b><small>{item.price||item.category}</small><button className="remove-btn" onClick={onRemove}><Trash2 size={13}/> Remove</button></article>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                }
+    }
